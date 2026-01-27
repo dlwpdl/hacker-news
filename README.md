@@ -1,21 +1,34 @@
-# 🗞️ Hacker News Telegram Bot
+# 🔐 Cybersecurity News Telegram Bot
 
-Hacker News Top Stories를 자동으로 수집하여 텔레그램으로 전송하는 봇입니다.
+Hacker News + 10개 보안 RSS 피드에서 사이버시큐리티 뉴스를 자동으로 수집하여 텔레그램으로 전송하는 봇입니다.
 
 ## 📋 기능
 
-- Hacker News Top Stories API에서 뉴스 수집
-- 어제 00:00 ~ 현재 시간(KST) 범위의 스토리만 필터링
-- 점수(score) 기준 정렬
+- Hacker News Top Stories API + 10개 보안 RSS 피드에서 뉴스 수집
+- **사이버시큐리티 관련 키워드 필터링** (security, vulnerability, exploit, malware 등 40+ 키워드)
+- 어제 00:00 ~ 현재 시간(KST) 범위의 뉴스만 필터링
+- 중복 제거 및 최신순 정렬
 - 텔레그램으로 자동 전송
-- Vercel Cron으로 하루 3회 자동 실행 (KST 08:00, 13:00, 19:00)
+- GitHub Actions Cron으로 하루 3회 자동 실행 (KST 08:00, 13:00, 19:00)
 
 ## 🔍 수집 방식
 
-- Hacker News API (`https://hacker-news.firebaseio.com/v0/topstories.json`) 사용
+### Hacker News API
+- `https://hacker-news.firebaseio.com/v0/topstories.json` 사용
 - Top 100개 스토리 조회
 - 배치 단위(20개씩) 병렬 조회로 성능 최적화
-- 최소 10개 ~ 최대 20개 스토리 전송
+
+### 보안 RSS 피드 (10개)
+1. The Hacker News
+2. Krebs on Security
+3. Dark Reading
+4. Threatpost
+5. BleepingComputer
+6. SecurityWeek
+7. Cybersecurity Insiders
+8. CISA Advisories
+9. The Register Security
+10. Security Affairs
 
 ## 🚀 시작하기
 
