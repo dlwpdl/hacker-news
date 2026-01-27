@@ -6,8 +6,6 @@ const TOP_STORIES_URL = `${HN_API_BASE}/topstories.json`;
 const ITEM_URL = (id: number) => `${HN_API_BASE}/item/${id}.json`;
 
 const FETCH_TIMEOUT = 10000; // 10초
-const MIN_NEWS_COUNT = 10;
-const MAX_NEWS_COUNT = 20;
 const BATCH_SIZE = 20; // 병렬 조회 배치 크기
 
 interface HNItem {
@@ -24,7 +22,7 @@ interface HNItem {
 
 /**
  * Hacker News Top Stories에서 뉴스 수집
- * @returns 필터링된 뉴스 항목 배열 (최소 10개, 최대 20개)
+ * @returns 날짜 필터링된 모든 뉴스 항목 배열
  */
 export async function fetchHackerNews(): Promise<NewsItem[]> {
   console.log('📡 Hacker News Top Stories 수집 시작...');
@@ -52,13 +50,6 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
           console.error(`❌ Story ${batchIds[index]} 조회 실패`);
         }
       });
-
-      // 충분한 뉴스를 모았으면 조기 종료
-      const filtered = filterAndSort(allStories);
-      if (filtered.length >= MIN_NEWS_COUNT) {
-        console.log(`✨ 충분한 뉴스 확보 (${filtered.length}개), 조기 종료`);
-        break;
-      }
     }
 
     console.log(`📊 총 수집된 스토리: ${allStories.length}개`);
@@ -66,18 +57,9 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
     // 4. 필터링 및 정렬
     const newsItems = filterAndSort(allStories);
     console.log(`📅 날짜 필터링 후: ${newsItems.length}개`);
+    console.log(`✨ 최종 반환: ${newsItems.length}개`);
 
-    // 5. 최소/최대 개수 적용
-    if (newsItems.length < MIN_NEWS_COUNT) {
-      console.warn(
-        `⚠️  필터링된 뉴스가 ${MIN_NEWS_COUNT}개 미만입니다 (${newsItems.length}개)`
-      );
-    }
-
-    const finalNews = newsItems.slice(0, MAX_NEWS_COUNT);
-    console.log(`✨ 최종 반환: ${finalNews.length}개`);
-
-    return finalNews;
+    return newsItems;
   } catch (error) {
     console.error('❌ Hacker News 조회 실패:', error);
     throw error;
