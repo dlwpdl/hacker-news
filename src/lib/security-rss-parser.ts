@@ -59,10 +59,6 @@ const SECURITY_RSS_FEEDS: RSSFeed[] = [
     name: 'SecurityWeek',
   },
   {
-    url: 'https://www.cybersecurity-insiders.com/feed/',
-    name: 'Cybersecurity Insiders',
-  },
-  {
     url: 'https://www.cisa.gov/cybersecurity-advisories/all.xml',
     name: 'CISA Advisories',
   },
@@ -91,11 +87,16 @@ const SECURITY_KEYWORDS = [
   'rce', 'ssrf', 'xss', 'csrf', 'idor', 'sqli', 'sandbox escape',
   'supply chain', 'prompt injection', 'jailbreak', 'llm security',
   'ai security', 'red team', 'model extraction', 'data poisoning',
-  'claude', 'anthropic', 'ai safety', 'alignment', 'interpretability', 'mcp',
-  'adversarial', '보안', '취약점', '해킹', '공격', '침해', '악성코드',
+  'ai safety', 'alignment', 'interpretability', 'mcp', 'adversarial',
+  '보안', '취약점', '해킹', '공격', '침해', '악성코드',
   '랜섬웨어', '패치', '제로데이', '펜테스트', '레드팀', '프롬프트 인젝션',
   '탈옥', '공급망', '인증 우회'
 ];
+
+interface AnthropicLink {
+  path: string;
+  pubDate: Date;
+}
 
 /**
  * 텍스트가 사이버시큐리티 관련 키워드를 포함하는지 확인
@@ -188,26 +189,43 @@ async function fetchRSSFeed(feed: RSSFeed): Promise<NewsItem[]> {
 }
 
 async function fetchAnthropicPages(): Promise<NewsItem[]> {
-  const paths = await Promise.all([
+  const links = await Promise.all([
     fetchAnthropicLinks('https://www.anthropic.com/news', '/news/'),
     fetchAnthropicLinks('https://www.anthropic.com/research', '/research/'),
   ]);
 
-  const urls = [...new Set(paths.flat())]
-    .filter(path => !path.startsWith('/research/team/'))
+  const uniqueLinks = [...new Map(
+    links.flat()
+      .filter(link => !link.path.startsWith('/research/team/'))
+      .map(link => [link.path, link])
+  ).values()]
     .slice(0, 10)
-    .map(path => `https://www.anthropic.com${path}`);
+    .map(link => ({
+      url: `https://www.anthropic.com${link.path}`,
+      pubDate: link.pubDate,
+    }));
 
-  const pages = await Promise.allSettled(urls.map(fetchAnthropicPage));
-  return pages.flatMap(page => page.status === 'fulfilled' && page.value ? [page.value] : []);
+  const pages = await Promise.allSettled(
+    uniqueLinks.map(link => fetchAnthropicPage(link.url, link.pubDate))
+  );
+  return pages
+    .flatMap(page => page.status === 'fulfilled' && page.value ? [page.value] : [])
+    .filter(item => containsSecurityKeywords(`${item.title} ${item.contentSnippet || ''}`));
 }
 
-async function fetchAnthropicLinks(url: string, prefix: string): Promise<string[]> {
+async function fetchAnthropicLinks(url: string, prefix: string): Promise<AnthropicLink[]> {
   const html = await fetchText(url, 'SecurityBot/1.0');
-  return [...new Set([...html.matchAll(new RegExp(`href="(${prefix}[^"]+)"`, 'g'))].map(match => match[1]))];
+  const links: AnthropicLink[] = [];
+  const pattern = new RegExp(`href="(${prefix}[^"]+)"[\\s\\S]{0,500}?<time[^>]*>\\s*([A-Z][a-z]{2} \\d{1,2}, 20\\d{2})`, 'g');
+
+  for (const match of html.matchAll(pattern)) {
+    links.push({ path: match[1], pubDate: new Date(match[2]) });
+  }
+
+  return links;
 }
 
-async function fetchAnthropicPage(url: string): Promise<NewsItem | null> {
+async function fetchAnthropicPage(url: string, pubDate: Date): Promise<NewsItem | null> {
   const html = await fetchText(url, 'SecurityBot/1.0');
   const title = decodeHTML(html.match(/<title>(.*?)<\/title>/)?.[1] || '')
     .replace(/\s*\\\s*Anthropic$/, '')
@@ -218,7 +236,7 @@ async function fetchAnthropicPage(url: string): Promise<NewsItem | null> {
   return {
     title,
     link: url,
-    pubDate: new Date(),
+    pubDate,
     contentSnippet: decodeHTML(html.match(/<meta name="description" content="([^"]*)"/)?.[1] || ''),
     source: 'Anthropic',
   };

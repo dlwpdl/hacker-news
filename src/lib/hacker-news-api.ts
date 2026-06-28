@@ -16,8 +16,8 @@ const RESEARCH_KEYWORDS = [
   'sandbox escape', 'auth bypass', 'oauth', 'saml', 'supply chain',
   'prompt injection', 'jailbreak', 'llm', 'agent', 'mcp', 'model extraction',
   'data poisoning', 'red team', 'bug bounty', 'web security', 'cloud security',
-  'claude', 'anthropic', 'ai safety', 'alignment', 'interpretability',
-  'kubernetes', 'container', 'cve', 'zero-day', '0day', '취약점', '분석',
+  'ai safety', 'alignment', 'interpretability', 'kubernetes', 'container',
+  'cve', 'zero-day', '0day', '취약점', '분석',
   '연구', '논문', '익스플로잇', '인증 우회', '프롬프트 인젝션', '탈옥',
   '레드팀', '펜테스트', '공급망', '클라우드', '쿠버네티스'
 ];
@@ -86,7 +86,7 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
 
 function scoreSecurityResearch(item: NewsItem): number {
   const text = `${item.title} ${item.contentSnippet || ''} ${item.source}`.toLowerCase();
-  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security trends|assetnote|watchtowr|anthropic|arxiv|geeknews/i.test(item.source) ? 5 : 0;
+  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security trends|assetnote|watchtowr|arxiv|geeknews/i.test(item.source) ? 5 : 0;
   return sourceBoost + countMatches(text, RESEARCH_KEYWORDS) * 2 - countMatches(text, LOW_SIGNAL_KEYWORDS) * 3;
 }
 
