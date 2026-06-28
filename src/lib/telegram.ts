@@ -75,7 +75,6 @@ function formatNewsItem(item: NewsItem, index: number): string {
   return [
     `<b>${index + 1}. [${profile.level}][${escapeHTML(profile.category)}][${escapeHTML(profile.shortTitle)}]</b>`,
     `<b>내용</b>: ${escapeHTML(profile.summary)}`,
-    `<b>인사이트</b>: ${escapeHTML(profile.insight)}`,
     `<b>출처</b>: ${source} · <a href="${link}">원문 직접</a>`,
     '',
   ].join('\n');
@@ -91,7 +90,6 @@ function getSecurityProfile(item: NewsItem) {
     shortTitle: truncate(stripHTML(item.title), 58),
     category,
     summary: getSummary(item),
-    insight: getSecurityInsight(item, text, category, level),
   };
 }
 
@@ -119,63 +117,9 @@ function getSecurityCategory(text: string): string {
   return '보안 리서치';
 }
 
-function getSecurityInsight(item: NewsItem, text: string, category: string, level: string): string {
-  const topic = getTopicHint(item.title);
-  const parts = [
-    topic && `핵심 키워드: ${topic}.`,
-    getSecuritySourceAngle(item.source, level),
-    getSecuritySignalAngle(text, category),
-    getSecurityExperiment(text, category, item.source),
-  ].filter(Boolean);
-
-  return parts.join(' ');
-}
-
-function getSecuritySourceAngle(source: string, level: string): string {
-  if (/github/i.test(source)) return 'repo라서 README, PoC 범위, 최근 커밋, issue를 먼저 보면 연구 가치가 빨리 갈림.';
-  if (level === 'L10' || /arxiv/i.test(source)) return '논문/연구라 threat model, artifact, 재현 조건을 먼저 확인해야 함.';
-  if (/portswigger|project zero|trail of bits|assetnote|watchtowr/i.test(source)) return '리서치 출처라 root cause와 전제 조건을 페이로드보다 먼저 보는 게 좋음.';
-  if (/cisa|advisories|securityweek|bleeping|hacker news/i.test(source)) return '권고/뉴스 성격이라 영향 버전, 패치, 탐지 룰 존재 여부를 빠르게 확인.';
-  return '기술 세부가 충분하면 연구 노트로, 사건 요약뿐이면 모니터링만 해도 됨.';
-}
-
-function getSecuritySignalAngle(text: string, category: string): string {
-  if (/prompt injection|jailbreak|llm security|model extraction|data poisoning|프롬프트 인젝션|탈옥/.test(text)) return 'AI 펜테스트 관점에서는 입력 경계, 도구 권한, 데이터 유출 경로를 테스트 케이스로 바꾸기 좋음.';
-  if (/rce|ssrf|auth bypass|sandbox escape|zero-day|0day|인증 우회|제로데이/.test(text)) return '조건이 맞으면 영향이 큰 편이라 인증 필요 여부와 공격 전제조건을 먼저 분리해야 함.';
-  if (/cve|poc|proof of concept|exploit|익스플로잇/.test(text)) return 'PoC가 있더라도 영향 버전과 패치 상태를 표로 정리한 뒤 랩에서만 확인.';
-  if (/supply chain|dependency|package|npm|pypi|github|공급망/.test(text)) return '내 lockfile/SBOM/CI 권한에 같은 노출이 있는지 보는 게 빠른 적용 포인트.';
-  if (/cloud|kubernetes|container|aws|azure|gcp|쿠버네티스/.test(text)) return 'IAM, 메타데이터 접근, 런타임 격리 로그를 같이 봐야 재현 가치가 있음.';
-  if (category === '웹 취약점') return '입력 검증 위치와 sink를 찾으면 비슷한 서비스 헌팅에 바로 재사용 가능.';
-  return 'CVE, PoC, 패치, 탐지 룰 중 하나가 없으면 우선순위를 낮춰도 됨.';
-}
-
-function getSecurityExperiment(text: string, category: string, source: string): string {
-  if (/github/i.test(source)) return '실험: clone 전에 README와 release만 보고 안전한 랩 재현 가능 여부 확인.';
-  if (/paper|arxiv|논문/.test(text)) return '실험: threat model과 artifact 링크만 확인하고 내 AI pentest 체크리스트에 들어갈지 판단.';
-  if (category === 'AI/LLM 보안') return '실험: 허가된 테스트 앱에서 실패/성공 프롬프트 3개만 재현.';
-  if (category === '공급망') return '실험: 내 프로젝트 lockfile에서 같은 패키지/권한 패턴만 검색.';
-  if (category === '익스플로잇 연구') return '실험: 영향 버전, 인증 필요 여부, 패치 여부만 먼저 표로 정리.';
-  return '실험: 원문에서 재현 조건이 명확하지 않으면 실행하지 말고 노트만 남기기.';
-}
-
 function getSummary(item: NewsItem): string {
   const raw = stripHTML(item.contentSnippet || item.title).replace(/\s+/g, ' ').trim();
-  return truncate(raw || stripHTML(item.title), 240);
-}
-
-const TOPIC_STOP_WORDS = new Set([
-  'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'new', 'how',
-  'what', 'why', 'using', 'towards', 'toward', 'about', 'news', 'blog',
-  'analysis', 'report', 'research', 'security',
-]);
-
-function getTopicHint(title: string): string {
-  const words = stripHTML(title)
-    .split(/[^A-Za-z0-9가-힣._+-]+/)
-    .map(word => word.trim())
-    .filter(word => word.length > 2 && !TOPIC_STOP_WORDS.has(word.toLowerCase()));
-
-  return words.slice(0, 3).join(', ');
+  return truncate(raw || stripHTML(item.title), 480);
 }
 
 function stripHTML(text: string): string {
