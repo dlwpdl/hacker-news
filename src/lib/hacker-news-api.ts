@@ -8,6 +8,25 @@ const ITEM_URL = (id: number) => `${HN_API_BASE}/item/${id}.json`;
 
 const FETCH_TIMEOUT = 10000; // 10초
 const BATCH_SIZE = 20; // 병렬 조회 배치 크기
+const MAX_NEWS_ITEMS = 12;
+
+const RESEARCH_KEYWORDS = [
+  'research', 'paper', 'arxiv', 'write-up', 'writeup', 'analysis', 'poc',
+  'proof of concept', 'exploit', 'rce', 'ssrf', 'xss', 'sqli', 'idor',
+  'sandbox escape', 'auth bypass', 'oauth', 'saml', 'supply chain',
+  'prompt injection', 'jailbreak', 'llm', 'agent', 'mcp', 'model extraction',
+  'data poisoning', 'red team', 'bug bounty', 'web security', 'cloud security',
+  'claude', 'anthropic', 'ai safety', 'alignment', 'interpretability',
+  'kubernetes', 'container', 'cve', 'zero-day', '0day', '취약점', '분석',
+  '연구', '논문', '익스플로잇', '인증 우회', '프롬프트 인젝션', '탈옥',
+  '레드팀', '펜테스트', '공급망', '클라우드', '쿠버네티스'
+];
+
+const LOW_SIGNAL_KEYWORDS = [
+  'funding', 'raised', 'valuation', 'acquisition', 'lawsuit', 'arrest',
+  'sentenced', 'policy', 'regulation', 'survey', 'report says', '투자',
+  '인수', '소송', '체포', '징역', '정책', '규제', '설문'
+];
 
 interface HNItem {
   id: number;
@@ -53,12 +72,37 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
   );
   console.log(`📅 날짜 필터링 후: ${filteredNews.length}개`);
 
-  // 6. 발행일 기준 정렬 (최신순)
-  filteredNews.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
+  // 6. 연구/실험 가능성 우선, 같은 점수면 최신순
+  filteredNews.sort((a, b) =>
+    scoreSecurityResearch(b) - scoreSecurityResearch(a) ||
+    b.pubDate.getTime() - a.pubDate.getTime()
+  );
 
-  console.log(`✨ 최종 반환: ${filteredNews.length}개`);
+  const finalNews = filteredNews.slice(0, MAX_NEWS_ITEMS);
+  console.log(`✨ 최종 반환: ${finalNews.length}개`);
 
-  return filteredNews;
+  return finalNews;
+}
+
+function scoreSecurityResearch(item: NewsItem): number {
+  const text = `${item.title} ${item.contentSnippet || ''} ${item.source}`.toLowerCase();
+  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security trends|assetnote|watchtowr|anthropic|arxiv|geeknews/i.test(item.source) ? 5 : 0;
+  return sourceBoost + countMatches(text, RESEARCH_KEYWORDS) * 2 - countMatches(text, LOW_SIGNAL_KEYWORDS) * 3;
+}
+
+function countMatches(text: string, keywords: string[]): number {
+  return keywords.filter(keyword => matchesKeyword(text, keyword)).length;
+}
+
+function matchesKeyword(text: string, keyword: string): boolean {
+  if (/[^\x00-\x7F]/.test(keyword) || keyword.includes(' ')) {
+    return text.includes(keyword);
+  }
+  return new RegExp(`(^|[^a-z0-9])${escapeRegExp(keyword)}([^a-z0-9]|$)`, 'i').test(text);
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

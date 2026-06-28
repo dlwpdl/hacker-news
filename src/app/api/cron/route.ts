@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // 1. Hacker News에서 뉴스 수집
-    const newsItems = await fetchHackerNews();
+    const limit = Number(request.nextUrl.searchParams.get('limit')) || undefined;
+    const newsItems = (await fetchHackerNews()).slice(0, limit);
 
     // 2. 텔레그램으로 전송
     await sendToTelegram(newsItems);
