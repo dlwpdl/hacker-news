@@ -86,7 +86,7 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
 
 function scoreSecurityResearch(item: NewsItem): number {
   const text = `${item.title} ${item.contentSnippet || ''} ${item.source}`.toLowerCase();
-  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security trends|assetnote|watchtowr|arxiv|geeknews/i.test(item.source) ? 5 : 0;
+  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security repos|assetnote|watchtowr|arxiv|geeknews/i.test(item.source) ? 5 : 0;
   return sourceBoost + countMatches(text, RESEARCH_KEYWORDS) * 2 - countMatches(text, LOW_SIGNAL_KEYWORDS) * 3;
 }
 
