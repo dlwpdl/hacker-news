@@ -41,7 +41,7 @@ Sources are split into technical depth, AI pentesting coverage, and community ex
 - AI pentesting and red-team tooling releases: Strix, PentAGI, NVIDIA garak, Microsoft PyRIT, Promptfoo, Giskard, Agentic Radar.
 - Research and papers: arXiv `cs.CR`.
 - Operational advisories and incident context: CISA Advisories, BleepingComputer, SecurityWeek, Security Affairs, The Hacker News, Dark Reading, The Register Security, Krebs on Security.
-- Community signals: Hacker News top stories, Lobsters Security, GeekNews.
+- Community signals: Hacker News top stories, GeekNews RSS, Lobsters Security, and optional Threads keyword search.
 - Open-source signals: targeted GitHub searches for `llm-security`, `ai-security`, `ai-pentesting`, `prompt-injection`, and `red-teaming`.
 
 This is not Strix-specific. Strix is one example of the type of source the bot should catch: active tools and research around AI-assisted pentesting, LLM agent security, prompt injection, autonomous security agents, red-team workflows, and scanner/eval tooling.
@@ -80,9 +80,11 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 SENT_URLS_FILE=.cache/security-news-sent.json
 GITHUB_TOKEN=optional_for_local_github_api_rate_limits
+THREADS_ACCESS_TOKEN=optional_for_threads_keyword_search
 ```
 
 GitHub Actions provides `GITHUB_TOKEN` automatically. For local runs, it is optional but useful when testing GitHub repo searches repeatedly.
+Threads search is disabled unless `THREADS_ACCESS_TOKEN` is set. Public Threads keyword search also requires Meta's `threads_keyword_search` permission; without approval it is limited to posts owned by the authenticated user.
 
 ## Run Locally
 

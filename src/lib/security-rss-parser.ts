@@ -124,6 +124,7 @@ const GITHUB_SECURITY_TOPICS = [
   'prompt-injection',
   'red-teaming',
 ];
+const THREADS_QUERIES = ['llm security', 'prompt injection', 'ai pentesting', 'red teaming'];
 
 // 사이버시큐리티 관련 키워드
 const SECURITY_KEYWORDS = [
@@ -185,6 +186,7 @@ export async function fetchSecurityRSS(): Promise<NewsItem[]> {
     Promise.allSettled([
       fetchAnthropicPages(),
       fetchGitHubSecurityTrends(),
+      fetchThreadsSearch(),
     ]),
   ]);
 
@@ -312,6 +314,46 @@ async function fetchGitHubSecurityTrends(): Promise<NewsItem[]> {
   return results.flatMap(result => result.status === 'fulfilled' ? result.value : []).slice(0, 8);
 }
 
+interface ThreadsPost {
+  id: string;
+  text?: string;
+  permalink?: string;
+  timestamp?: string;
+  username?: string;
+}
+
+async function fetchThreadsSearch(): Promise<NewsItem[]> {
+  const token = process.env.THREADS_ACCESS_TOKEN;
+  if (!token) return [];
+
+  const results = await Promise.allSettled(
+    THREADS_QUERIES.map(query => fetchThreadsPosts(query, token))
+  );
+
+  return results.flatMap(result => result.status === 'fulfilled' ? result.value : []).slice(0, 6);
+}
+
+async function fetchThreadsPosts(query: string, token: string): Promise<NewsItem[]> {
+  const params = new URLSearchParams({
+    q: query,
+    search_type: 'RECENT',
+    search_mode: 'KEYWORD',
+    fields: 'id,text,permalink,timestamp,username',
+    access_token: token,
+  });
+  const json = await fetchJSON<{ data?: ThreadsPost[] }>(`https://graph.threads.net/v1.0/keyword_search?${params}`, 'SecurityBot/1.0');
+
+  return (json.data || [])
+    .filter(post => post.text && post.permalink && post.timestamp)
+    .map(post => ({
+      title: truncateText(post.text!, 90),
+      link: post.permalink!,
+      pubDate: new Date(post.timestamp!),
+      contentSnippet: post.username ? `@${post.username}: ${post.text}` : post.text,
+      source: `Threads:${query}`,
+    }));
+}
+
 interface GitHubRepo {
   full_name: string;
   html_url: string;
@@ -378,4 +420,9 @@ function decodeHTML(text: string): string {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>');
+}
+
+function truncateText(text: string, maxLength: number): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  return clean.length <= maxLength ? clean : `${clean.slice(0, maxLength - 1)}…`;
 }
