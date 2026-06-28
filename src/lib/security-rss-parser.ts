@@ -11,6 +11,18 @@ const SECURITY_RSS_FEEDS: RSSFeed[] = [
     name: 'PortSwigger Research',
   },
   {
+    url: 'https://genai.owasp.org/feed/',
+    name: 'OWASP GenAI Security',
+  },
+  {
+    url: 'https://www.promptfoo.dev/blog/rss.xml',
+    name: 'Promptfoo AI Pentest Blog',
+  },
+  {
+    url: 'https://protectai.com/blog/rss.xml',
+    name: 'Protect AI Blog',
+  },
+  {
     url: 'https://googleprojectzero.blogspot.com/feeds/posts/default',
     name: 'Google Project Zero',
   },
@@ -29,6 +41,38 @@ const SECURITY_RSS_FEEDS: RSSFeed[] = [
   {
     url: 'https://labs.watchtowr.com/rss/',
     name: 'watchTowr Labs',
+  },
+  {
+    url: 'https://lobste.rs/t/security.rss',
+    name: 'Lobsters Security',
+  },
+  {
+    url: 'https://github.com/usestrix/strix/releases.atom',
+    name: 'Strix AI Pentest Releases',
+  },
+  {
+    url: 'https://github.com/vxcontrol/pentagi/releases.atom',
+    name: 'PentAGI AI Pentest Releases',
+  },
+  {
+    url: 'https://github.com/NVIDIA/garak/releases.atom',
+    name: 'Garak LLM Security Releases',
+  },
+  {
+    url: 'https://github.com/microsoft/PyRIT/releases.atom',
+    name: 'PyRIT AI Red Team Releases',
+  },
+  {
+    url: 'https://github.com/promptfoo/promptfoo/releases.atom',
+    name: 'Promptfoo AI Pentest Releases',
+  },
+  {
+    url: 'https://github.com/Giskard-AI/giskard-oss/releases.atom',
+    name: 'Giskard AI Security Releases',
+  },
+  {
+    url: 'https://github.com/splx-ai/agentic-radar/releases.atom',
+    name: 'Agentic Radar AI Security Releases',
   },
   {
     url: 'https://export.arxiv.org/rss/cs.CR',
@@ -73,7 +117,13 @@ const SECURITY_RSS_FEEDS: RSSFeed[] = [
 ];
 
 const FETCH_TIMEOUT = 10000; // 10초
-const GITHUB_SECURITY_TOPICS = ['security', 'pentesting', 'vulnerability-research', 'llm-security'];
+const GITHUB_SECURITY_TOPICS = [
+  'llm-security',
+  'ai-security',
+  'ai-pentesting',
+  'prompt-injection',
+  'red-teaming',
+];
 
 // 사이버시큐리티 관련 키워드
 const SECURITY_KEYWORDS = [
@@ -88,6 +138,10 @@ const SECURITY_KEYWORDS = [
   'supply chain', 'prompt injection', 'jailbreak', 'llm security',
   'ai security', 'red team', 'model extraction', 'data poisoning',
   'ai safety', 'alignment', 'interpretability', 'mcp', 'adversarial',
+  'ai pentesting', 'ai penetration testing', 'ai red team', 'red teaming',
+  'agent security', 'agentic workflow', 'llm agent', 'tool call', 'toolcall',
+  'garak', 'pyrit', 'pentagi', 'promptfoo', 'giskard', 'agentic radar',
+  'purplellama', 'purple llama', 'guardrail', 'pii leakage', 'prompt leakage',
   '보안', '취약점', '해킹', '공격', '침해', '악성코드',
   '랜섬웨어', '패치', '제로데이', '펜테스트', '레드팀', '프롬프트 인젝션',
   '탈옥', '공급망', '인증 우회'
@@ -175,7 +229,7 @@ async function fetchRSSFeed(feed: RSSFeed): Promise<NewsItem[]> {
     const items: NewsItem[] = (rssFeed.items || [])
       .filter(item => item.link && item.title && item.pubDate)
       .map(item => ({
-        title: item.title!,
+        title: formatRSSItemTitle(feed.name, item.title!),
         link: item.link!,
         pubDate: new Date(item.pubDate!),
         contentSnippet: item.contentSnippet || item.content || undefined,
@@ -186,6 +240,13 @@ async function fetchRSSFeed(feed: RSSFeed): Promise<NewsItem[]> {
   } catch (error) {
     throw new Error(`Failed to parse ${feed.name}: ${error}`);
   }
+}
+
+function formatRSSItemTitle(source: string, title: string): string {
+  if (/releases$/i.test(source) && /^(v?\d|[a-z0-9_-]+==)/i.test(title)) {
+    return `${source.replace(/\s+Releases$/i, '')} ${title}`;
+  }
+  return title;
 }
 
 async function fetchAnthropicPages(): Promise<NewsItem[]> {
@@ -245,10 +306,10 @@ async function fetchAnthropicPage(url: string, pubDate: Date): Promise<NewsItem 
 async function fetchGitHubSecurityTrends(): Promise<NewsItem[]> {
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const results = await Promise.allSettled(
-    GITHUB_SECURITY_TOPICS.map(topic => fetchGitHubRepos(`topic:${topic}+stars:%3E50+pushed:%3E${since}`))
+    GITHUB_SECURITY_TOPICS.map(topic => fetchGitHubRepos(`topic:${topic}+stars:%3E50+pushed:%3E${since}`, topic))
   );
 
-  return results.flatMap(result => result.status === 'fulfilled' ? result.value : []).slice(0, 10);
+  return results.flatMap(result => result.status === 'fulfilled' ? result.value : []).slice(0, 8);
 }
 
 interface GitHubRepo {
@@ -259,8 +320,8 @@ interface GitHubRepo {
   pushed_at: string;
 }
 
-async function fetchGitHubRepos(query: string): Promise<NewsItem[]> {
-  const url = `https://api.github.com/search/repositories?q=${query}&sort=updated&order=desc&per_page=5`;
+async function fetchGitHubRepos(query: string, topic: string): Promise<NewsItem[]> {
+  const url = `https://api.github.com/search/repositories?q=${query}&sort=updated&order=desc&per_page=3`;
   const json = await fetchJSON<{ items?: GitHubRepo[] }>(url, 'SecurityBot/1.0');
 
   return (json.items || []).map(repo => ({
@@ -268,7 +329,7 @@ async function fetchGitHubRepos(query: string): Promise<NewsItem[]> {
     link: repo.html_url,
     pubDate: new Date(repo.pushed_at),
     contentSnippet: `${repo.description || 'No description'} · ${repo.stargazers_count.toLocaleString()} stars`,
-    source: `GitHub Security Repos (${repo.stargazers_count.toLocaleString()}★)`,
+    source: `GitHub AI Security Repos:${topic} (${repo.stargazers_count.toLocaleString()}★)`,
   }));
 }
 
@@ -285,14 +346,19 @@ async function fetchJSON<T>(url: string, userAgent: string): Promise<T> {
 async function fetchWithTimeout(url: string, userAgent: string): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github+json, text/html',
+    'User-Agent': userAgent,
+  };
+
+  if (url.startsWith('https://api.github.com/') && process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
 
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/vnd.github+json, text/html',
-        'User-Agent': userAgent,
-      },
+      headers,
     });
 
     if (!response.ok) {

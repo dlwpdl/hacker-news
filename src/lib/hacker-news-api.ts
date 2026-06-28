@@ -17,6 +17,9 @@ const RESEARCH_KEYWORDS = [
   'prompt injection', 'jailbreak', 'llm', 'agent', 'mcp', 'model extraction',
   'data poisoning', 'red team', 'bug bounty', 'web security', 'cloud security',
   'ai safety', 'alignment', 'interpretability', 'kubernetes', 'container',
+  'ai pentesting', 'ai penetration testing', 'ai red team', 'red teaming',
+  'agent security', 'agentic workflow', 'llm agent', 'tool call', 'toolcall',
+  'garak', 'pyrit', 'pentagi', 'promptfoo', 'giskard', 'agentic radar',
   'cve', 'zero-day', '0day', '취약점', '분석',
   '연구', '논문', '익스플로잇', '인증 우회', '프롬프트 인젝션', '탈옥',
   '레드팀', '펜테스트', '공급망', '클라우드', '쿠버네티스'
@@ -61,7 +64,7 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
 
   // 4. 사이버시큐리티 키워드 필터링
   const securityNews = uniqueNews.filter(item => {
-    const textToCheck = `${item.title} ${item.contentSnippet || ''}`;
+    const textToCheck = getSecurityFilterText(item);
     return containsSecurityKeywords(textToCheck);
   });
   console.log(`🔐 보안 키워드 필터링 후: ${securityNews.length}개`);
@@ -86,8 +89,15 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
 
 function scoreSecurityResearch(item: NewsItem): number {
   const text = `${item.title} ${item.contentSnippet || ''} ${item.source}`.toLowerCase();
-  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security repos|assetnote|watchtowr|arxiv|geeknews/i.test(item.source) ? 5 : 0;
+  const sourceBoost = /portswigger|project zero|trail of bits|github security|github security repos|assetnote|watchtowr|arxiv|geeknews|owasp|promptfoo|protect ai|strix|pentagi|garak|pyrit|giskard|agentic radar|lobsters/i.test(item.source) ? 5 : 0;
   return sourceBoost + countMatches(text, RESEARCH_KEYWORDS) * 2 - countMatches(text, LOW_SIGNAL_KEYWORDS) * 3;
+}
+
+function getSecurityFilterText(item: NewsItem): string {
+  const trustedSourceSignal = /portswigger|project zero|trail of bits|github security|assetnote|watchtowr|arxiv|owasp|promptfoo|protect ai|pentagi|garak|pyrit|giskard|agentic radar|lobsters security|cisa/i.test(item.source)
+    ? item.source
+    : '';
+  return `${item.title} ${item.contentSnippet || ''} ${trustedSourceSignal}`;
 }
 
 function countMatches(text: string, keywords: string[]): number {
