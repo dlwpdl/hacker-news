@@ -63,7 +63,7 @@ const SECURITY_RSS_FEEDS: RSSFeed[] = [
     name: 'Cybersecurity Insiders',
   },
   {
-    url: 'https://www.cisa.gov/cybersecurity-advisories/rss.xml',
+    url: 'https://www.cisa.gov/cybersecurity-advisories/all.xml',
     name: 'CISA Advisories',
   },
   {
@@ -125,7 +125,7 @@ export async function fetchSecurityRSS(): Promise<NewsItem[]> {
 
   const [rssResults, extraResults] = await Promise.all([
     Promise.allSettled(
-    SECURITY_RSS_FEEDS.map(feed => fetchRSSFeed(feed))
+      SECURITY_RSS_FEEDS.map(feed => fetchRSSFeed(feed))
     ),
     Promise.allSettled([
       fetchAnthropicPages(),
