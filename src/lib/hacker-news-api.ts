@@ -1,5 +1,5 @@
 import type { NewsItem } from '@/types/news';
-import { isWithinYesterdayToToday } from './date-utils';
+import { isWithinRecentHours } from './date-utils';
 import { fetchSecurityRSS, containsSecurityKeywords } from './security-rss-parser';
 
 const HN_API_BASE = 'https://hacker-news.firebaseio.com/v0';
@@ -66,9 +66,9 @@ export async function fetchHackerNews(): Promise<NewsItem[]> {
   });
   console.log(`🔐 보안 키워드 필터링 후: ${securityNews.length}개`);
 
-  // 5. 날짜 필터링 (어제 00:00 ~ 현재)
+  // 5. 날짜 필터링 (하루 1회 실행 + 지연 여유)
   const filteredNews = securityNews.filter(item =>
-    isWithinYesterdayToToday(item.pubDate)
+    isWithinRecentHours(item.pubDate)
   );
   console.log(`📅 날짜 필터링 후: ${filteredNews.length}개`);
 

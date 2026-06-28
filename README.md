@@ -1,16 +1,15 @@
 # Security News
 
-Hacking and security research Telegram bot. It combines Hacker News, security RSS, Anthropic security/safety research, GitHub security trends, and papers into compact Telegram messages.
+Security research Telegram sender. It combines Hacker News, security RSS, Anthropic security/safety research, GitHub security activity, and papers into practical messages for AI pentesting research.
 
-## Message Shape
+## Message Format
 
-- L1-L10 level
-- Short title
-- Category
-- Brief summary
-- Practical insight
-- Small lab idea
-- Source link
+```text
+1. [L8][익스플로잇 연구][Short title]
+내용: Brief context
+인사이트: Why it matters and a small lab idea
+출처: Source · 원문 직접
+```
 
 ## Levels
 
@@ -27,13 +26,13 @@ Hacking and security research Telegram bot. It combines Hacker News, security RS
 | L9 | Root cause research |
 | L10 | Paper or frontier research |
 
-## Main Sources
+## Sources
 
 - Hacker News top stories
 - PortSwigger Research, Google Project Zero, Trail of Bits
 - GitHub Security Lab, Assetnote, watchTowr, arXiv cs.CR
 - The Hacker News, Krebs, Dark Reading, BleepingComputer, SecurityWeek, CISA
-- Anthropic security/safety research and GitHub security trend search
+- Anthropic security/safety research and GitHub security repo search
 - GeekNews security topics
 
 ## Environment
@@ -41,25 +40,19 @@ Hacking and security research Telegram bot. It combines Hacker News, security RS
 ```bash
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
-CRON_SECRET=
+SENT_URLS_FILE=.cache/security-news-sent.json
 ```
 
 ## Run
 
 ```bash
-npm install
+npm ci
 npm run lint
-npx tsc --noEmit
-npm run build
-```
-
-Manual one-item test:
-
-```bash
-curl 'http://localhost:3000/api/cron?limit=1' \
-  -H "Authorization: Bearer $CRON_SECRET"
+NEWS_LIMIT=1 npm run send
 ```
 
 ## Cron
 
-`vercel.json` and GitHub Actions run once daily at 08:00 KST.
+GitHub Actions runs once daily at 08:00 KST. Manual workflow runs accept an optional `limit` input for format tests.
+
+Sent URL deduplication is stored in the GitHub Actions cache for 72 hours.
