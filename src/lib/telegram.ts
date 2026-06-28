@@ -60,17 +60,12 @@ function formatNewsItem(item: NewsItem, index: number): string {
   const profile = getSecurityProfile(item);
   const source = escapeHTML(item.source);
   const link = escapeHTML(item.link);
-  const relTime = getRelativeTime(item.pubDate);
 
   return [
-    `<b>${index + 1}. ${escapeHTML(profile.shortTitle)}</b>`,
-    `     레벨: ${profile.level} · ${escapeHTML(getLevelName(profile.level))}`,
-    `     카테고리: ${escapeHTML(profile.category)}`,
-    `     내용: ${escapeHTML(profile.summary)}`,
-    `     인사이트: ${escapeHTML(profile.insight)}`,
-    `     실험: ${escapeHTML(profile.experiment)}`,
-    `     ${source} · ${relTime}`,
-    `     출처: ${source} · <a href="${link}">원문</a>`,
+    `<b>${index + 1}. [${profile.level}][${escapeHTML(profile.category)}][${escapeHTML(profile.shortTitle)}]</b>`,
+    `내용: ${escapeHTML(profile.summary)}`,
+    `인사이트: ${escapeHTML(profile.insight)}`,
+    `출처: ${source} · <a href="${link}">원문 직접</a>`,
     '',
   ].join('\n');
 }
@@ -85,8 +80,7 @@ function getSecurityProfile(item: NewsItem) {
     shortTitle: truncate(stripHTML(item.title), 58),
     category,
     summary: getSummary(item),
-    insight: getSecurityInsight(category, level),
-    experiment: getSecurityExperiment(category),
+    insight: `${getSecurityInsight(category, level)} ${getSecurityExperiment(category)}`,
   };
 }
 
@@ -115,44 +109,28 @@ function getSecurityCategory(text: string): string {
 }
 
 function getSecurityInsight(category: string, level: string): string {
-  if (level === 'L10') return '논문 수준. threat model, dataset, 재현 코드 존재 여부만 먼저 확인';
-  if (category === 'AI/LLM 보안') return 'AI 펜테스팅 체크리스트나 평가 프롬프트에 바로 반영 가능';
-  if (category === '웹 취약점') return 'root cause와 입력 검증 경계를 보면 유사 취약점 헌팅에 쓸 수 있음';
-  if (category === '클라우드/컨테이너') return '권한 경계, 메타데이터, 워크로드 격리 점검 항목으로 전환 가능';
-  if (category === '공급망') return '의존성/빌드/배포 체인에서 같은 패턴이 있는지 확인할 가치가 있음';
-  if (category === '익스플로잇 연구') return '허가된 랩에서 조건과 영향 범위를 재현해볼 후보';
-  return '기술 세부사항이 충분하면 연구 노트로, 아니면 모니터링만';
+  if (level === 'L10') return '논문/연구 수준. 공격 모델, 전제 조건, artifact, 재현 코드가 있는지 먼저 보면 AI 펜테스팅 연구로 가져갈 수 있는지 빠르게 판단 가능.';
+  if (category === 'AI/LLM 보안') return 'AI 펜테스팅 체크리스트나 평가 프롬프트에 바로 반영 가능함. jailbreak 성공 여부보다 입력 경계, 도구 권한, 데이터 유출 경로를 같이 봐야 함.';
+  if (category === '웹 취약점') return 'root cause와 입력 검증 경계를 보면 유사 취약점 헌팅에 쓸 수 있음. 패턴이 단순하면 내 테스트 페이로드 사전에 추가할 가치가 있음.';
+  if (category === '클라우드/컨테이너') return '권한 경계, 메타데이터 접근, 워크로드 격리 점검 항목으로 전환 가능함. IAM diff와 로그 탐지 가능성까지 같이 보면 좋음.';
+  if (category === '공급망') return '의존성, 빌드, 배포 체인에서 같은 패턴이 있는지 확인할 가치가 있음. lockfile/SBOM/CI 권한부터 보는 게 빠름.';
+  if (category === '익스플로잇 연구') return '허가된 랩에서 조건과 영향 범위를 재현해볼 후보. exploitability보다 영향 버전, 인증 필요 여부, 패치 여부를 먼저 확인해야 함.';
+  return '기술 세부사항이 충분하면 연구 노트로 남기고, 단순 사건 보도면 모니터링만 하면 됨. CVE, PoC, 탐지 룰, 패치 중 하나가 있는지 먼저 확인.';
 }
 
 function getSecurityExperiment(category: string): string {
-  if (category === '논문/연구') return '초록, threat model, artifact 링크만 10분 안에 확인';
-  if (category === 'AI/LLM 보안') return '허가된 테스트 앱에서 실패/성공 프롬프트 5개로 재현';
-  if (category === '웹 취약점') return '로컬 DVWA/Juice Shop류 랩에서 같은 입력 검증 패턴만 확인';
-  if (category === '클라우드/컨테이너') return '샌드박스 계정에서 최소 권한 정책과 탐지 로그만 비교';
-  if (category === '공급망') return '내 프로젝트 lockfile/SBOM에서 유사 패키지 노출 여부 확인';
-  if (category === '익스플로잇 연구') return 'PoC 실행 전 영향 버전, 전제조건, 패치 여부만 표로 정리';
-  return '링크에 CVE, PoC, 패치, 탐지 룰 중 1개 이상 있는지 확인';
-}
-
-function getLevelName(level: string): string {
-  const names: Record<string, string> = {
-    L1: '보안 일반 소식',
-    L2: '위협/동향 리포트',
-    L3: '탐지 룰/체크리스트',
-    L4: '패치/완화/권고',
-    L5: '침해/악성코드 분석',
-    L6: 'CVE/PoC/도구',
-    L7: 'AI/LLM 보안 실험',
-    L8: '공격 체인/고위험 취약점',
-    L9: 'Root cause 리서치',
-    L10: '논문/최전선 연구',
-  };
-  return names[level] || '분류 보류';
+  if (category === '논문/연구') return '실험: 초록, threat model, artifact 링크만 10분 안에 확인.';
+  if (category === 'AI/LLM 보안') return '실험: 허가된 테스트 앱에서 실패/성공 프롬프트 5개로 재현.';
+  if (category === '웹 취약점') return '실험: 로컬 DVWA/Juice Shop류 랩에서 같은 입력 검증 패턴만 확인.';
+  if (category === '클라우드/컨테이너') return '실험: 샌드박스 계정에서 최소 권한 정책과 탐지 로그만 비교.';
+  if (category === '공급망') return '실험: 내 프로젝트 lockfile/SBOM에서 유사 패키지 노출 여부 확인.';
+  if (category === '익스플로잇 연구') return '실험: PoC 실행 전 영향 버전, 전제조건, 패치 여부만 표로 정리.';
+  return '실험: 링크에 CVE, PoC, 패치, 탐지 룰 중 1개 이상 있는지 확인.';
 }
 
 function getSummary(item: NewsItem): string {
   const raw = stripHTML(item.contentSnippet || item.title).replace(/\s+/g, ' ').trim();
-  return truncate(raw || stripHTML(item.title), 130);
+  return truncate(raw || stripHTML(item.title), 240);
 }
 
 function stripHTML(text: string): string {
@@ -184,25 +162,6 @@ function formatDateCompact(): string {
   const h = String(kst.getHours()).padStart(2, '0');
   const min = String(kst.getMinutes()).padStart(2, '0');
   return `${y}.${m}.${d} (${day}) ${h}:${min}`;
-}
-
-/**
- * 상대 시간 계산
- */
-function getRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return '방금';
-  if (diffMin < 60) return `${diffMin}분 전`;
-
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
-
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay === 1) return '어제';
-  return `${diffDay}일 전`;
 }
 
 /**
