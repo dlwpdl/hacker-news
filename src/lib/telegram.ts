@@ -190,17 +190,17 @@ function buildDigestPrompt(newsItems: NewsItem[], label: string): string {
     'overview는 전체 흐름 1~2개, 각 70자 이내입니다.',
     'items는 입력 순서와 개수를 그대로 맞추고 level은 L1~L10, category는 12자 이내, title은 35자 이내, summary는 85자 이내입니다.',
     '영어 제목을 그대로 두지 말고 자연스러운 한국어로 번역하세요. 고유명사와 제품명은 유지하세요.',
-    'level은 출처나 소스명이 아니라 "내가 실제 테스트/검증해보기 얼마나 어려운가"로 정하세요. L10일수록 어렵고 연구급입니다.',
-    'L1: 단순 보안 동향/리포트. 테스트할 내용 거의 없음.',
-    'L2: 일반 사고/뉴스/업계 소식. 읽고 상황만 파악하면 됨.',
-    'L3: 체크리스트, 탐지 룰, 설정 팁. 바로 점검 가능.',
-    'L4: 패치, 완화, 권고. 버전/설정 확인으로 검증 가능.',
-    'L5: 침해/악성코드/랜섬웨어 분석. 로그/IOC 확인 등 운영 검토 필요.',
-    'L6: CVE, PoC, 스캐너, 보안 도구. 실험 환경에서 실행해볼 수 있음.',
-    'L7: AI/LLM 보안, 프롬프트 인젝션, 레드팀 케이스. 모델/앱 세팅이 필요.',
-    'L8: RCE, 인증 우회, 공급망, 샌드박스 탈출 등 영향 큰 취약점. 재현 환경 구성이 필요.',
-    'L9: 루트코즈 분석, 복합 공격 체인, 정교한 취약점 연구. 깊은 코드/시스템 분석 필요.',
-    'L10: 논문급 보안 연구, 새 공격/방어 모델, formal method, 대규모 데이터셋/실험. 개인이 바로 테스트하기 어려움.',
+    'level은 보안 관점에서 중요도, 최신성, 운영/코드/테스트에 반영할 가치를 함께 봐서 정하세요. AI/LLM 펜테스팅은 관심 분야라 약간 더 높게 보되, 일반 보안 현황도 놓치지 마세요.',
+    'L1: 단순 보안 동향/의견. 행동할 내용 거의 없음.',
+    'L2: 일반 사고/업계 뉴스/정책. 배경 파악용이고 테스트 우선순위 낮음.',
+    'L3: 체크리스트, 탐지 룰, 설정 팁. 바로 점검하거나 TODO로 옮길 수 있음.',
+    'L4: 패치, 완화, 권고. 내 버전/설정/의존성 확인으로 검증 가능.',
+    'L5: 침해/악성코드/랜섬웨어 분석. IOC, 로그 쿼리, 운영 탐지로 반영 가능.',
+    'L6: CVE, PoC, 스캐너, 보안 도구. 실험 환경에서 직접 돌려볼 수 있음.',
+    'L7: 프롬프트 인젝션, 탈옥, RAG 오염, 모델 추출, 클라우드/웹 취약점 등 내 앱에 테스트 케이스로 반영 가치가 큼.',
+    'L8: AI 펜테스팅 도구, 레드팀 프레임워크, eval 하네스, 에이전트/tool-call/MCP 공격면, RCE/인증 우회/공급망처럼 영향 큰 취약점.',
+    'L9: 복합 공격 체인, 루트코즈, 정교한 취약점 연구. 코드 리뷰, 하드닝, 테스트 설계에 깊게 반영해야 함.',
+    'L10: 최전선 보안 연구, 새 공격/방어 패러다임, formal method, 대규모 벤치마크/데이터셋, 업계 판도를 바꿀 기술. 바로 재현 가능하지 않아도 반드시 추적할 만함.',
     '중국어, 일본어, 한자는 금지입니다. 예: 跟不上 같은 표현은 "따라가지 못하는"처럼 한국어로 바꾸세요.',
     '',
     items,
@@ -259,10 +259,11 @@ function getSecurityProfile(item: NewsItem) {
 }
 
 function getSecurityLevel(text: string): string {
-  if (/formal method|large-scale|dataset|empirical study|new defense|zero-knowledge|논문급/.test(text)) return 'L10';
+  if (/frontier|new paradigm|formal method|large-scale|dataset|benchmark|empirical study|new defense|zero-knowledge|breakthrough|최전선|새 패러다임|논문급/.test(text)) return 'L10';
   if (/root cause|vulnerability analysis|novel attack|new attack|key collision|semantic caching|backdoor|confidential ai|research|write-up|연구|분석/.test(text)) return 'L9';
+  if (/ai pentest|ai penetration|agent security|agentic radar|promptfoo|pyrit|garak|giskard|pentagi|strix|red team.*framework|eval harness|tool call|tool-call|mcp|에이전트 보안|펜테스트/.test(text)) return 'L8';
   if (/rce|ssrf|sandbox escape|auth bypass|supply chain|zero-day|0day|익스플로잇|인증 우회|공급망|제로데이/.test(text)) return 'L8';
-  if (/prompt injection|jailbreak|llm security|ai security|model extraction|data poisoning|red team|프롬프트 인젝션|탈옥|레드팀/.test(text)) return 'L7';
+  if (/prompt injection|jailbreak|llm security|ai security|model extraction|data poisoning|red team|rag poisoning|프롬프트 인젝션|탈옥|레드팀/.test(text)) return 'L7';
   if (/cve|poc|proof of concept|bug bounty|tool|scanner|탐지|도구/.test(text)) return 'L6';
   if (/breach|malware|ransomware|incident|침해|악성코드|랜섬웨어/.test(text)) return 'L5';
   if (/patch|mitigation|advisory|권고|패치|완화/.test(text)) return 'L4';
