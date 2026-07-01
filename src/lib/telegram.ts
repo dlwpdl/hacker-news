@@ -12,6 +12,8 @@ interface KoreanDigestItem {
   category: string;
   title: string;
   summary: string;
+  action: string;
+  why: string;
 }
 
 interface NvidiaChatResponse {
@@ -51,7 +53,7 @@ export async function sendToTelegram(newsItems: NewsItem[]): Promise<void> {
 
     const digest = await buildKoreanDigest(newsItems, 'Hacker News 보안 뉴스');
     const messageGroups = digest
-      ? [formatKoreanDigest(newsItems, digest)]
+      ? formatKoreanDigest(newsItems, digest)
       : splitNewsIntoGroups(newsItems);
 
     for (let i = 0; i < messageGroups.length; i++) {
@@ -103,16 +105,18 @@ function formatNewsItem(item: NewsItem, index: number): string {
   ].join('\n');
 }
 
-function formatKoreanDigest(newsItems: NewsItem[], digest: KoreanDigest): string {
+function formatKoreanDigest(newsItems: NewsItem[], digest: KoreanDigest): string[] {
+  const groups: string[] = [];
   const lines: string[] = [];
 
-  if (digest.overview.length > 0) {
+  if (newsItems.length > 1 && digest.overview.length > 0) {
     lines.push('<b>핵심 요약</b>');
     lines.push(...digest.overview.map(item => `• ${escapeHTML(item)}`));
     lines.push('');
   }
 
   lines.push('<b>뉴스 요약</b>');
+  let currentGroup = `${lines.join('\n')}\n\n`;
 
   for (let i = 0; i < newsItems.length; i++) {
     const item = newsItems[i];
@@ -122,14 +126,31 @@ function formatKoreanDigest(newsItems: NewsItem[], digest: KoreanDigest): string
     const category = translated?.category || profile.category;
     const title = translated?.title || profile.shortTitle;
     const summary = translated?.summary || profile.summary;
+    const action = translated?.action || '';
+    const why = translated?.why || '';
 
-    lines.push(`<b>${i + 1}. [${level}][${escapeHTML(category)}] ${escapeHTML(title)}</b>`);
-    lines.push(escapeHTML(summary));
-    lines.push(`${escapeHTML(item.source)} · <a href="${escapeHTML(item.link)}">원문</a>`);
-    lines.push('');
+    const formattedItem = [
+      `<b>${i + 1}. [${level}][${escapeHTML(category)}] ${escapeHTML(title)}</b>`,
+      `<b>요약</b>: ${escapeHTML(summary)}`,
+      action ? `<b>테스트</b>: ${escapeHTML(action)}` : '',
+      why ? `<b>판단</b>: ${escapeHTML(why)}` : '',
+      `${escapeHTML(item.source)} · <a href="${escapeHTML(item.link)}">원문</a>`,
+      '',
+    ].filter(Boolean).join('\n');
+
+    if (currentGroup && currentGroup.length + formattedItem.length > MAX_MESSAGE_LENGTH - 400) {
+      groups.push(currentGroup);
+      currentGroup = '';
+    }
+
+    currentGroup += formattedItem;
   }
 
-  return lines.join('\n');
+  if (currentGroup) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
 }
 
 async function buildKoreanDigest(newsItems: NewsItem[], label: string): Promise<KoreanDigest | null> {
@@ -186,9 +207,12 @@ function buildDigestPrompt(newsItems: NewsItem[], label: string): string {
 
   return [
     `아래 ${label} 기사 ${newsItems.length}개를 한국어 텔레그램 digest로 요약하세요.`,
-    '반드시 JSON만 반환하세요: {"overview":["..."],"items":[{"level":"L8","category":"...","title":"...","summary":"..."}]}',
+    '반드시 JSON만 반환하세요: {"overview":["..."],"items":[{"level":"L8","category":"...","title":"...","summary":"...","action":"...","why":"..."}]}',
     'overview는 전체 흐름 1~2개, 각 70자 이내입니다.',
-    'items는 입력 순서와 개수를 그대로 맞추고 level은 L1~L10, category는 12자 이내, title은 35자 이내, summary는 85자 이내입니다.',
+    'items는 입력 순서와 개수를 그대로 맞추세요. category는 12자 이내, title은 35자 이내입니다.',
+    'summary는 150~220자, 1~2문장으로 "무슨 이슈이고 보안상 왜 봐야 하는지"까지 설명하세요.',
+    'action은 90자 이내로 내가 보안 점검/테스트/코드 하드닝에 반영할 작업을 쓰세요. 없으면 빈 문자열.',
+    'why는 80자 이내로 왜 그 level인지 판단 근거를 쓰세요.',
     '영어 제목을 그대로 두지 말고 자연스러운 한국어로 번역하세요. 고유명사와 제품명은 유지하세요.',
     'level은 보안 관점에서 중요도, 최신성, 운영/코드/테스트에 반영할 가치를 함께 봐서 정하세요. AI/LLM 펜테스팅은 관심 분야라 약간 더 높게 보되, 일반 보안 현황도 놓치지 마세요.',
     'L1: 단순 보안 동향/의견. 행동할 내용 거의 없음.',
@@ -227,11 +251,13 @@ function parseKoreanDigest(text: string, itemCount: number): KoreanDigest | null
       level: normalizeLevel(item?.level) || '',
       category: truncate(isString(item?.category) ? item.category.trim() : '', 18),
       title: truncate(isString(item?.title) ? item.title.trim() : '', 46),
-      summary: truncate(isString(item?.summary) ? item.summary.trim() : '', 120),
+      summary: truncate(isString(item?.summary) ? item.summary.trim() : '', 260),
+      action: truncate(isString(item?.action) ? item.action.trim() : '', 120),
+      why: truncate(isString(item?.why) ? item.why.trim() : '', 100),
     };
   });
 
-  if ([...overview, ...items.flatMap(item => [item.category, item.title, item.summary])].some(containsCJKIdeograph)) {
+  if ([...overview, ...items.flatMap(item => [item.category, item.title, item.summary, item.action, item.why])].some(containsCJKIdeograph)) {
     console.error('NVIDIA 요약에 중국어/일본어/한자가 섞여 폐기합니다.');
     return null;
   }
