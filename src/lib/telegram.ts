@@ -8,6 +8,8 @@ interface KoreanDigest {
 }
 
 interface KoreanDigestItem {
+  level: string;
+  category: string;
   title: string;
   summary: string;
 }
@@ -116,10 +118,12 @@ function formatKoreanDigest(newsItems: NewsItem[], digest: KoreanDigest): string
     const item = newsItems[i];
     const profile = getSecurityProfile(item);
     const translated = digest.items[i];
+    const level = normalizeLevel(translated?.level) || profile.level;
+    const category = translated?.category || profile.category;
     const title = translated?.title || profile.shortTitle;
     const summary = translated?.summary || profile.summary;
 
-    lines.push(`<b>${i + 1}. [${profile.level}][${escapeHTML(profile.category)}] ${escapeHTML(title)}</b>`);
+    lines.push(`<b>${i + 1}. [${level}][${escapeHTML(category)}] ${escapeHTML(title)}</b>`);
     lines.push(escapeHTML(summary));
     lines.push(`${escapeHTML(item.source)} · <a href="${escapeHTML(item.link)}">원문</a>`);
     lines.push('');
@@ -182,10 +186,16 @@ function buildDigestPrompt(newsItems: NewsItem[], label: string): string {
 
   return [
     `아래 ${label} 기사 ${newsItems.length}개를 한국어 텔레그램 digest로 요약하세요.`,
-    '반드시 JSON만 반환하세요: {"overview":["..."],"items":[{"title":"...","summary":"..."}]}',
+    '반드시 JSON만 반환하세요: {"overview":["..."],"items":[{"level":"L8","category":"...","title":"...","summary":"..."}]}',
     'overview는 전체 흐름 1~2개, 각 70자 이내입니다.',
-    'items는 입력 순서와 개수를 그대로 맞추고 title은 35자 이내, summary는 85자 이내입니다.',
+    'items는 입력 순서와 개수를 그대로 맞추고 level은 L1~L10, category는 12자 이내, title은 35자 이내, summary는 85자 이내입니다.',
     '영어 제목을 그대로 두지 말고 자연스러운 한국어로 번역하세요. 고유명사와 제품명은 유지하세요.',
+    'level은 출처나 소스명으로 정하지 말고, 내용의 실험 가능성/실무성/보안 영향/기술 디테일로 정하세요.',
+    'L10: 논문급 세부 연구, 새 공격/방어, 취약점 분석, 데이터셋, 재현 가능한 실험 가치가 큼',
+    'L8-L9: RCE, 인증 우회, 공급망, AI/LLM 보안, 레드팀, 루트코즈처럼 바로 검토할 보안 신호',
+    'L6-L7: CVE, PoC, 스캐너, 도구, 탐지 기법처럼 써보거나 확인할 만함',
+    'L3-L5: 패치, 완화, 권고, 사고 분석처럼 운영 참고 가치',
+    'L1-L2: 단순 리포트, 동향, 정보성 소식',
     '중국어, 일본어, 한자는 금지입니다. 예: 跟不上 같은 표현은 "따라가지 못하는"처럼 한국어로 바꾸세요.',
     '',
     items,
@@ -209,12 +219,14 @@ function parseKoreanDigest(text: string, itemCount: number): KoreanDigest | null
   const items = Array.from({ length: itemCount }, (_, index) => {
     const item = parsed.items?.[index];
     return {
+      level: normalizeLevel(item?.level) || '',
+      category: truncate(isString(item?.category) ? item.category.trim() : '', 18),
       title: truncate(isString(item?.title) ? item.title.trim() : '', 46),
       summary: truncate(isString(item?.summary) ? item.summary.trim() : '', 120),
     };
   });
 
-  if ([...overview, ...items.flatMap(item => [item.title, item.summary])].some(containsCJKIdeograph)) {
+  if ([...overview, ...items.flatMap(item => [item.category, item.title, item.summary])].some(containsCJKIdeograph)) {
     console.error('NVIDIA 요약에 중국어/일본어/한자가 섞여 폐기합니다.');
     return null;
   }
@@ -242,7 +254,7 @@ function getSecurityProfile(item: NewsItem) {
 }
 
 function getSecurityLevel(text: string): string {
-  if (/arxiv|paper|formal method|논문/.test(text)) return 'L10';
+  if (/formal method|benchmark|dataset|empirical|evaluation|root cause|novel attack|new attack|new defense|vulnerability analysis|key collision|semantic caching|backdoor|confidential ai|zero-knowledge|논문급/.test(text)) return 'L10';
   if (/project zero|portswigger|trail of bits|assetnote|watchtowr|root cause|research|write-up|연구|분석/.test(text)) return 'L9';
   if (/rce|ssrf|sandbox escape|auth bypass|supply chain|zero-day|0day|익스플로잇|인증 우회|공급망|제로데이/.test(text)) return 'L8';
   if (/prompt injection|jailbreak|llm security|ai security|model extraction|data poisoning|red team|프롬프트 인젝션|탈옥|레드팀/.test(text)) return 'L7';
@@ -343,6 +355,12 @@ function escapeHTML(text: string): string {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function normalizeLevel(value: unknown): string | null {
+  if (!isString(value)) return null;
+  const match = value.trim().toUpperCase().match(/^L([1-9]|10)$/);
+  return match ? `L${match[1]}` : null;
 }
 
 function containsCJKIdeograph(text: string): boolean {
